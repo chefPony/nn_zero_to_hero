@@ -1,45 +1,49 @@
 class Value:
 
-    def __init__(self, data, _children=(), _op=None):
+    def __init__(self, data, label='', _children=(), _op=None):
 
         self.data = data
         self._prev = set(_children)
         self._op = _op
         self.grad = 0.0
+        self._backward = lambda : None
+        self.label = label
 
     def __repr__(self):
-        return f"Value(data={self.data})"
+        return f"Value(data={self.data}, label={self.label}])"
 
     def __add__(self, other):
         out = Value(self.data + other.data, _children=(self, other), _op="ADD")
+        l = (3 - len(out._prev))
+
+        def _backward():
+            self.grad += out.grad * 1.0
+            other.grad += out.grad * 1.0
+
+        out._backward = _backward
         return out
 
     def __mul__(self, other):
         out = Value(self.data * other.data, _children=(self, other), _op="MUL")
+
+        def _backward():
+            self.grad += out.grad * other.data
+            other.grad += out.grad * self.data
+        out._backward = _backward
         return out
 
-    def _backward(self, x):
-        if not self._prev or (self == x):
-            return float(self == x)
-        if self._op == "ADD":
-            return sum([c._backward(x) for c in self._prev])
-        elif self._op == "MUL":
-            return self._prev[0]._backward(x) * self._prev[1].data + \
-                self._prev[0].data * self._prev[1]._backward(x)
-
-    def backward(self, _level=0):
-        self.grad = 1.0 if _level == 0 else self.grad
-        s = (3 - len(self._prev)) * sum([x.data for x in self._prev])
-        if self._op == "ADD":
-            for x in self._prev:
-                x.grad += self.grad * (3 - len(self._prev))
-                x.backward(_level+1)
-        elif self._op == "MUL":
-            for x in self._prev:
-                x.grad += self.grad * (3 - len(self._prev)) * (s - x.data)
-                x.backward(_level+1)
-
-
-    #@property
-    #def grad(self):
-    #    return self.next.backward(self)
+    def backward(self):
+        # Topological sort
+        height = 0
+        queue = [(x, height + 1) for x in self._prev]
+        order = {self: 0}
+        while queue:
+            target, height = queue.pop()
+            current_height = max(height, order.get(target, 0))
+            order[target] = current_height
+            queue += [(child, current_height + 1) for child in target._prev]
+        #backward propagation
+        self.grad = 1
+        order = sorted(order, key=lambda x: order.get(x))
+        for x in order:
+            x._backward()
