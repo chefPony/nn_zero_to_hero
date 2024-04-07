@@ -1,4 +1,5 @@
 import pytest
+import math
 from micrograd.micrograd import Value
 
 
@@ -30,6 +31,16 @@ def test_backward_sum():
     assert b.grad == 2
 
 
+def test_backward_sub():
+    a = Value(2)
+    b = Value(-1)
+    c = a - b
+    c.backward()
+    assert c.grad == 1
+    assert a.grad == 1
+    assert b.grad == -1
+
+
 def test_backward_mul():
     a = Value(-1)
     b = Value(2)
@@ -38,6 +49,36 @@ def test_backward_mul():
     assert c.grad == 1
     assert a.grad == 2
     assert b.grad == 3
+
+
+def test_backward_exp():
+    a = Value(2)
+    b = a.exp()
+    b.backward()
+    assert a.grad == math.exp(2)
+
+
+def test_backward_pow():
+    a = Value(6)
+    b = a ** 2
+    b.backward()
+    assert a.grad == 12
+
+
+def test_backward_div():
+    a = Value(6)
+    b = Value(3)
+    c = a / b
+    c.backward()
+    assert a.grad == 1./3
+    assert b.grad == -6 * (3 ** -2)
+
+
+def test_backward_tanh():
+    a = Value(6)
+    b = a.tanh()
+    b.backward()
+    assert a.grad == 1 - math.tanh(a.data) ** 2
 
 
 def test_backward():
