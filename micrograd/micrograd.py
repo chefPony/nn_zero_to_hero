@@ -35,6 +35,12 @@ class Value:
         out._backward = _backward
         return out
 
+    def __radd__(self, other):
+        return self + other
+
+    def __rmul__(self, other):
+        return self * other
+
     def __sub__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data - other.data, _children=(self, other), _op="SUB")
@@ -44,6 +50,9 @@ class Value:
             other.grad += out.grad * (-1.0)
         out._backward = _backward
         return out
+
+    def __rsub__(self, other):
+        return (self - other) * (-1.)
 
     def exp(self):
         out = Value(math.exp(self.data), _children=(self,), _op="EXP")
@@ -59,7 +68,7 @@ class Value:
         out = Value(self.data ** other, _children=(self, ))
 
         def _backward():
-            self.grad = out.grad * other * self.data ** (other - 1)
+            self.grad += out.grad * other * self.data ** (other - 1)
         out._backward = _backward
         return out
 
@@ -74,6 +83,30 @@ class Value:
 
         def _backward():
             self.grad += out.grad * (1 - out.data ** 2)
+
+        out._backward = _backward
+        return out
+
+    def leaky_relu(self, alpha=0.1):
+        z = self.data if self.data >= 0 else self.data * alpha
+
+        out = Value(z, _children=(self, ), _op="RELU")
+
+        def _backward():
+            self.grad += out.grad * (out.data >= 0) + alpha * (out.data < 0)
+
+        out._backward = _backward
+        return out
+
+    def sigmoid(self):
+        out = self.exp()/(1 + self.exp())
+        return out
+
+    def log(self):
+        out = Value(data=math.log(self.data), _children=(self, ))
+
+        def _backward():
+            self.grad += out.grad * 1./self.data
 
         out._backward = _backward
         return out
