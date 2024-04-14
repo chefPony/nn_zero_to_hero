@@ -93,7 +93,7 @@ class Value:
         out = Value(z, _children=(self, ), _op="RELU")
 
         def _backward():
-            self.grad += out.grad * (out.data >= 0) + alpha * (out.data < 0)
+            self.grad += out.grad * (out.data >= 0) + out.grad * alpha * (out.data < 0)
 
         out._backward = _backward
         return out
