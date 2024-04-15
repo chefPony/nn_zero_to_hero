@@ -1,6 +1,7 @@
 import pytest
 import math
 from micrograd.micrograd import Value
+from torch import Tensor
 
 
 def test_add():
@@ -23,12 +24,20 @@ def test_mul():
 
 def test_backward_sum():
     a = Value(2)
-    b = Value(-1)
+    b = a + 3
     c = a + b + b
     c.backward()
-    assert c.grad == 1
-    assert a.grad == 1
-    assert b.grad == 2
+    amg, cmg = a, c
+
+    a = Tensor([2.]).double()
+    a.requires_grad = True
+    b = a + 3
+    c = a + b + b
+    c.backward()
+    apt, cpt = a, c
+
+    assert cmg.data == cpt.item()
+    assert amg.grad == apt.grad.item()
 
 
 def test_backward_sub():
@@ -41,65 +50,58 @@ def test_backward_sub():
     assert b.grad == -1
 
 
-def test_backward_mul():
-    a = Value(-1)
-    b = Value(2)
+def test_backward_1():
+    a = Value(2.)
+    b = a - 3
     c = a * b + b * b
-    c.backward()
-    assert c.grad == 1
-    assert a.grad == 2
-    assert b.grad == 3
+    d = c.leaky_relu(0.)
+    d.backward()
+    amg, dmg = a, d
+
+    a = Tensor([2.]).double()
+    a.requires_grad = True
+    b = a - 3
+    c = a * b + b * b
+    d = c.relu()
+    d.backward()
+    apt, dpt = a, d
+
+    assert dpt.item() == dmg.data
+    assert amg.grad == apt.grad.item()
 
 
-def test_backward_exp():
-    a = Value(2)
-    b = a.exp()
-    b.backward()
-    assert a.grad == math.exp(2)
+def test_backward_2():
+    a = Value(2.)
+    b = a - 5
+    c = a * b + b * b
+    z = a.exp()
+    d = c.leaky_relu(0.) + z.tanh() + a/c
+    d.backward()
+    amg, dmg = a, d
+
+    a = Tensor([2.]).double()
+    a.requires_grad = True
+    b = a - 5
+    c = a * b + b * b
+    z = a.exp()
+    d = c.relu() + z.tanh() + a/c
+    d.backward()
+    apt, dpt = a, d
+
+    assert dpt.item() == dmg.data
+    assert amg.grad == apt.grad.item()
 
 
 def test_backward_pow():
     a = Value(6)
-    b = a ** 2
+    b = a ** 2.5
     b.backward()
-    assert a.grad == 12
+    amg, bmg = a, b
 
-
-def test_backward_div():
-    a = Value(6)
-    b = Value(3)
-    c = a / b
-    c.backward()
-    assert a.grad == 1./3
-    assert b.grad == -6 * (3 ** -2)
-
-
-def test_backward_tanh():
-    a = Value(6)
-    b = a.tanh()
+    a = Tensor([6.])
+    a.requires_grad = True
+    b = a**2.5
     b.backward()
-    assert a.grad == 1 - math.tanh(a.data) ** 2
-
-
-def test_backward():
-    # g = e * d = (d + a) * (c + b * b) = (c + b^2 + a) * (c + b^2) = c^2 + 2cb^2 + b^4 +ac + ab^2
-    # dg/db = 4cb + 4b^3 + 2ab = 8 + 4 + 4 = 16
-    # dg/dd = (d + a) * d = d^2 + ad = 2d + a = 6 + 2 = 8
-    # dg/dc = (d + a) * d = (c + b^2 + a) * (c + b^2) = c^2 + 2cb^2 + b^4 + ac +ab^2 = 2c + 2b^2 + a= 4 + 2 + 2
-    a, b = Value(2, label="a"), Value(1, label="b")
-    c = a + b      # 3
-    c.label = "c"
-    d = a * b      # 2
-    d.label = "d"
-    e = c + d      # 5
-    e.label = "e"
-    g = e * d      # 10
-    g.label = "g"
-    g.backward()
-    assert g.grad == 1
-    assert e.grad == 2
-    assert d.grad == 7
-    assert c.grad == 2
-    assert b.grad == 16
-    assert a.grad == 9
-
+    apt, bpt = a, b
+    assert abs(amg.grad - apt.grad.item()) < 1e-5
+    assert abs(bmg.data - bpt.item()) < 1e-4

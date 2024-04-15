@@ -19,7 +19,7 @@ class Neuron:
     def parameters(self):
         return self.w + [self.b]
 
-    def reset_grad(self):
+    def zero_grad(self):
         for w in self.w:
             w.grad = 0
         self.b.grad = 0
@@ -47,9 +47,9 @@ class Layer:
             parameters.extend(n.parameters())
         return parameters
 
-    def reset_grad(self):
+    def zero_grad(self):
         for n in self.neurons:
-            n.reset_grad()
+            n.zero_grad()
 
     def update(self, lr):
         for n in self.neurons:
@@ -75,7 +75,7 @@ class MicroNetwork:
     def parameters(self):
         return [p for l in self.layers for p in l.parameters()]
 
-    def reset_grad(self):
+    def zero_grad(self):
         for p in self.parameters():
             p.grad = 0.
 
