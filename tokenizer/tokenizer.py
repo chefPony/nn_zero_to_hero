@@ -59,7 +59,7 @@ class BasicTokenizer:
 
     def decode(self, encoded_text: List[int]):
         decode_dict = {i: self.decode_token(i) for i in range(len(self.tokens))}
-        decoded_text = b''.join([decode_dict[t] for t in encoded_text])
+        decoded_text = b''.join([decode_dict[t] for t in encoded_text]).decode()
         return decoded_text
 
 
